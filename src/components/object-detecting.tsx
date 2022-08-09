@@ -27,8 +27,12 @@ export function ObjectDetecting() {
   const socketSelector = state.controller.setting.socket;
   const objectDetectingSelector = state.controller.objectDetecting;
 
-  const [image, setImage] = useState<string>(null!);
-  const [imageCanvas] = useImage(`data:image/;base64,${image}`);
+  const [image, setImage] = useState<string>(
+    "https://images.unsplash.com/photo-1534330786040-317bdb76ccff?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8Z2lybCUyMG1vZGVsfGVufDB8MnwwfHw%3D&auto=format&fit=crop&w=500&q=60"
+  );
+  const [imageCanvas] = useImage(
+    "https://images.unsplash.com/photo-1534330786040-317bdb76ccff?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8Z2lybCUyMG1vZGVsfGVufDB8MnwwfHw%3D&auto=format&fit=crop&w=500&q=60"
+  );
 
   const maxHeight = window.innerHeight > 600 ? 600 : window.innerHeight - 50;
   const [initialAspect, setInitialAspect] = useState<number>(1);
@@ -51,15 +55,15 @@ export function ObjectDetecting() {
   const zoomScope = 50;
   const [isZoom, setIsZoom] = useState<boolean>(false);
 
-  useEffect(() => {
-    socketSelector.emit("IMAGE_DETECTING");
-  }, [socketSelector]);
+  // useEffect(() => {
+  //   socketSelector.emit("IMAGE_DETECTING");
+  // }, [socketSelector]);
 
-  useEffect(() => {
-    socketSelector.on("image", ({ image }) => {
-      setImage(image);
-    });
-  }, [socketSelector]);
+  // useEffect(() => {
+  //   socketSelector.on("image", ({ image }) => {
+  //     setImage(image);
+  //   });
+  // }, [socketSelector]);
 
   const startDraw = () => {
     if (newAnnotation.length === 0) {
@@ -505,20 +509,34 @@ export function ObjectDetecting() {
           <Stage
             ref={stageRef}
             onMouseDown={
-              objectDetectingSelector.indexTool === 3 ? startDraw : zoomStart
+              objectDetectingSelector.indexTool === 3
+                ? startDraw
+                : !objectDetectingSelector.indexTool
+                ? zoomStart
+                : () => true
             }
             onTouchStart={
-              objectDetectingSelector.indexTool === 3 ? startDraw : zoomStart
+              objectDetectingSelector.indexTool === 3
+                ? startDraw
+                : !objectDetectingSelector.indexTool
+                ? zoomStart
+                : () => true
             }
             onTouchMove={
               objectDetectingSelector.indexTool === 2
                 ? onTouchMoveZoom
                 : objectDetectingSelector.indexTool === 3
                 ? drawing
-                : zoomTouch
+                : !objectDetectingSelector.indexTool
+                ? zoomTouch
+                : () => true
             }
             onMouseMove={
-              objectDetectingSelector.indexTool === 3 ? drawing : zoomTouch
+              objectDetectingSelector.indexTool === 3
+                ? drawing
+                : !objectDetectingSelector.indexTool
+                ? zoomTouch
+                : () => true
             }
             onTouchEnd={
               objectDetectingSelector.indexTool === 2

@@ -48,7 +48,7 @@ export function ObjectImage({
         <Image
           ref={imageRef}
           alt="Crop me"
-          src={`data:image/png;base64,${image}`}
+          src={image}
           onLoad={onImageLoad}
         />
       </ReactCrop>
