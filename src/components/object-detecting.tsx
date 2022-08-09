@@ -6,7 +6,7 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Image, Layer, Rect, Stage } from "react-konva";
 import { AppContext, Types } from "store/index";
 import useImage from "use-image";
-import { getCenter, getDistance } from "utils";
+import { getCenter, getDistance, getPositionZoom } from "utils";
 import { CropOption, ImageToolbox, ObjectImage, ObjectOption } from ".";
 
 export interface IStageProps {
@@ -48,6 +48,8 @@ export function ObjectDetecting() {
   const imageCanvasRef = useRef<Konva.Image>(null!);
   const stageRef = useRef<Konva.Stage>(null!);
   const zoomRef = useRef<Konva.Image>(null!);
+  const zoomScope = 50;
+  const [isZoom, setIsZoom] = useState<boolean>(false);
 
   useEffect(() => {
     socketSelector.emit("IMAGE_DETECTING");
@@ -266,6 +268,19 @@ export function ObjectDetecting() {
     });
   }, [objectDetectingSelector, scaleImage]);
 
+  const copyImageProperty = () => {
+    let x = imageCanvasRef.current.x();
+    let y = imageCanvasRef.current.y();
+    let scaleX = imageCanvasRef.current.scaleX();
+    let scaleY = imageCanvasRef.current.scaleY();
+    let image = imageCanvasRef.current.image();
+    zoomRef.current.x(x);
+    zoomRef.current.y(y);
+    zoomRef.current.scaleX(scaleX);
+    zoomRef.current.scaleY(scaleY);
+    zoomRef.current.image(image);
+  };
+
   useEffect(() => {
     if (
       imageCanvasRef.current &&
@@ -374,6 +389,97 @@ export function ObjectDetecting() {
     rectList,
   ]);
 
+  const zoomStart = () => {
+    setIsZoom(true);
+    copyImageProperty();
+    let sideOfSquare =
+      currentStage.width >= currentStage.height
+        ? currentStage.height
+        : currentStage.width;
+    sideOfSquare = sideOfSquare / 3;
+    sideOfSquare = sideOfSquare < 100 ? 100 : sideOfSquare;
+
+    let { x, y } = stageRef.current.getPointerPosition() as Vector2d;
+
+    const zoomPosition = getPositionZoom({
+      x,
+      y,
+      width: currentStage.width,
+      height: currentStage.height,
+      xStage: stageRef.current.x(),
+      yStage: stageRef.current.y(),
+      scaleX: stageRef.current.scaleX(),
+      scaleY: stageRef.current.scaleY(),
+      sideOfSquare,
+    });
+    x = (x - stageRef.current.x()) / stageRef.current.scaleX();
+    y = (y - stageRef.current.y()) / stageRef.current.scaleY();
+    const xImage = x / zoomRef.current.scaleX();
+    const yImage = y / zoomRef.current.scaleY();
+
+    zoomRef.current.crop({
+      x: xImage - zoomScope / 2,
+      y: yImage - zoomScope / 2,
+      width: zoomScope,
+      height: zoomScope,
+    });
+    zoomRef.current.position(zoomPosition);
+
+    zoomRef.current.width(sideOfSquare);
+    zoomRef.current.height(sideOfSquare);
+    zoomRef.current.scaleX(1 / stageRef.current.scaleX());
+    zoomRef.current.scaleY(1 / stageRef.current.scaleY());
+  };
+
+  const zoomTouch = () => {
+    if (!isZoom) return;
+    copyImageProperty();
+    let sideOfSquare =
+      currentStage.width >= currentStage.height
+        ? currentStage.height
+        : currentStage.width;
+    sideOfSquare = sideOfSquare / 3;
+    sideOfSquare = sideOfSquare < 100 ? 100 : sideOfSquare;
+
+    let { x, y } = stageRef.current.getPointerPosition() as Vector2d;
+
+    const zoomPosition = getPositionZoom({
+      x,
+      y,
+      width: currentStage.width,
+      height: currentStage.height,
+      xStage: stageRef.current.x(),
+      yStage: stageRef.current.y(),
+      scaleX: stageRef.current.scaleX(),
+      scaleY: stageRef.current.scaleY(),
+      sideOfSquare,
+    });
+    x = (x - stageRef.current.x()) / stageRef.current.scaleX();
+    y = (y - stageRef.current.y()) / stageRef.current.scaleY();
+    const xImage = x / zoomRef.current.scaleX();
+    const yImage = y / zoomRef.current.scaleY();
+
+    zoomRef.current.crop({
+      x: xImage - zoomScope / 2,
+      y: yImage - zoomScope / 2,
+      width: zoomScope,
+      height: zoomScope,
+    });
+    zoomRef.current.position(zoomPosition);
+    zoomRef.current.width(sideOfSquare);
+    zoomRef.current.height(sideOfSquare);
+    zoomRef.current.scaleX(1 / stageRef.current.scaleX());
+    zoomRef.current.scaleY(1 / stageRef.current.scaleY());
+  };
+
+  const outZoomTouch = () => {
+    zoomRef.current.x(0);
+    zoomRef.current.y(0);
+    zoomRef.current.width(0);
+    zoomRef.current.height(0);
+    setIsZoom(false);
+  };
+
   const annotationsToDraw = [...annotations, ...newAnnotation];
   return (
     <HStack width="100%" h="100vh">
@@ -399,20 +505,20 @@ export function ObjectDetecting() {
           <Stage
             ref={stageRef}
             onMouseDown={
-              objectDetectingSelector.indexTool === 3 ? startDraw : () => true
+              objectDetectingSelector.indexTool === 3 ? startDraw : zoomStart
             }
             onTouchStart={
-              objectDetectingSelector.indexTool === 3 ? startDraw : () => true
+              objectDetectingSelector.indexTool === 3 ? startDraw : zoomStart
             }
             onTouchMove={
               objectDetectingSelector.indexTool === 2
                 ? onTouchMoveZoom
                 : objectDetectingSelector.indexTool === 3
                 ? drawing
-                : () => true
+                : zoomTouch
             }
             onMouseMove={
-              objectDetectingSelector.indexTool === 3 ? drawing : () => true
+              objectDetectingSelector.indexTool === 3 ? drawing : zoomTouch
             }
             onTouchEnd={
               objectDetectingSelector.indexTool === 2
@@ -422,7 +528,7 @@ export function ObjectDetecting() {
                   }
                 : objectDetectingSelector.indexTool === 3
                 ? stopDraw
-                : () => true
+                : outZoomTouch
             }
             onClick={
               objectDetectingSelector.indexTool === 2
@@ -440,7 +546,7 @@ export function ObjectDetecting() {
                     setLastDist(0);
                     setLastCenter(null!);
                   }
-                : () => true
+                : outZoomTouch
             }
             onWheel={onWheel}
             style={{
@@ -449,7 +555,6 @@ export function ObjectDetecting() {
             }}
           >
             <Layer x={0} y={0}>
-              <Image image={undefined} x={0} y={0} />
               <Image
                 image={imageCanvas}
                 ref={imageCanvasRef}
@@ -492,6 +597,7 @@ export function ObjectDetecting() {
               {annotationsToDraw.map((rect, index) => (
                 <Rect {...rect} stroke="red" key={index} />
               ))}
+              <Image image={undefined} x={0} y={0} ref={zoomRef} />
             </Layer>
           </Stage>
           {objectDetectingSelector.indexTool === 0 &&
